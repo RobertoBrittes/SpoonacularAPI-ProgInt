@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panela — Busca de Receitas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <span class="wordmark">Panela</span>
+      <span class="tagline">o que tem na geladeira?</span>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <section class="hero">
+      <h1>Descubra o que cozinhar<br>com o que você já tem</h1>
+      <p class="hero-sub">Busque por prato, ingrediente ou vontade do momento. A Panela consulta a Spoonacular API e traz receitas com modo de preparo, tempo e ingredientes.</p>
+
+      <form id="search-form" class="search-form" autocomplete="off">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="ex.: macarrão, frango ao curry, brownie..."
+          aria-label="Buscar receitas"
+        >
+        <button type="submit" id="search-btn">Buscar</button>
+      </form>
+
+      <div class="quick-actions">
+        <button type="button" class="link-btn" id="random-btn">Surpreenda-me com uma receita aleatória</button>
+      </div>
+    </section>
+
+    <section id="status-area" class="status-area" hidden></section>
+
+    <section id="results" class="results" aria-live="polite"></section>
+
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" id="modal-close" aria-label="Fechar">&times;</button>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Projeto acadêmico — Seminário de Programação para Internet · Dados via <a href="https://spoonacular.com/food-api" target="_blank" rel="noopener">Spoonacular API</a></p>
+    </div>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

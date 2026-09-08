@@ -1,0 +1,304 @@
+:root {
+  --ink: #1b2a1d;
+  --ink-soft: #47564a;
+  --green: #2f5233;
+  --green-deep: #1f3823;
+  --mustard: #d9a441;
+  --rust: #c1440e;
+  --paper: #ffffff;
+  --paper-tint: #f4f6f1;
+  --line: #e0e5db;
+  --radius: 14px;
+  --shadow: 0 10px 28px rgba(27, 42, 29, 0.10);
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Inter", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+h1, h2, h3, .wordmark, .recipe-title {
+  font-family: "Fraunces", Georgia, serif;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+a { color: var(--green); }
+
+/* Topbar */
+.topbar {
+  border-bottom: 1px solid var(--line);
+  padding: 20px 0;
+}
+.topbar-inner {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.wordmark {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--green-deep);
+}
+.tagline {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+/* Hero */
+.hero {
+  padding: 64px 0 36px;
+  max-width: 620px;
+}
+.hero h1 {
+  font-size: 2.6rem;
+  font-weight: 600;
+  line-height: 1.12;
+  margin: 0 0 18px;
+  color: var(--green-deep);
+}
+.hero-sub {
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0 0 30px;
+  max-width: 52ch;
+}
+
+.search-form {
+  display: flex;
+  gap: 10px;
+}
+.search-form input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--paper-tint);
+  color: var(--ink);
+}
+.search-form input:focus {
+  outline: none;
+  border-color: var(--green);
+  background: var(--paper);
+}
+.search-form button {
+  padding: 14px 26px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--green);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.search-form button:hover { background: var(--green-deep); }
+.search-form button:focus-visible,
+.link-btn:focus-visible,
+.modal-close:focus-visible {
+  outline: 2.5px solid var(--rust);
+  outline-offset: 2px;
+}
+.search-form button:disabled {
+  background: #9fb0a2;
+  cursor: not-allowed;
+}
+
+.quick-actions { margin-top: 16px; }
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--rust);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link-btn:hover { color: var(--green-deep); }
+
+/* Status (loading / error / empty) */
+.status-area {
+  margin: 8px 0 30px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  font-size: 0.98rem;
+}
+.status-area.loading {
+  background: var(--paper-tint);
+  color: var(--ink-soft);
+}
+.status-area.error {
+  background: #fbeae3;
+  color: #7c2a0c;
+  border: 1px solid #f0c3ac;
+}
+.status-area.empty {
+  background: var(--paper-tint);
+  color: var(--ink-soft);
+}
+
+/* Results grid */
+.results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 22px;
+  padding-bottom: 70px;
+}
+
+.recipe-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  box-shadow: var(--shadow);
+  transition: transform 0.15s ease;
+  display: flex;
+  flex-direction: column;
+}
+.recipe-card:hover { transform: translateY(-3px); }
+.recipe-card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--paper-tint);
+}
+.recipe-card-body {
+  padding: 16px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.recipe-title {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: var(--green-deep);
+  margin: 0;
+  line-height: 1.3;
+}
+.recipe-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-top: auto;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(27, 42, 29, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+  z-index: 50;
+}
+/* O atributo [hidden] tem prioridade baixa no navegador — sem esta regra,
+   o "display: flex" acima o sobrepõe e o modal fica visível mesmo escondido. */
+.modal-overlay[hidden] {
+  display: none;
+}
+.modal {
+  background: var(--paper);
+  max-width: 680px;
+  width: 100%;
+  border-radius: 18px;
+  position: relative;
+  padding: 34px 34px 40px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.28);
+}
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: var(--paper-tint);
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.modal-close:hover { background: var(--line); }
+
+.modal-body img {
+  width: 100%;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.modal-body h2 {
+  color: var(--green-deep);
+  margin: 0 0 6px;
+  font-size: 1.6rem;
+}
+.modal-meta {
+  display: flex;
+  gap: 18px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  margin-bottom: 20px;
+}
+.modal-body h3 {
+  font-size: 1.05rem;
+  color: var(--green);
+  margin: 26px 0 10px;
+}
+.modal-body ul, .modal-body ol {
+  padding-left: 22px;
+  margin: 0;
+}
+.modal-body li { margin-bottom: 7px; }
+.modal-summary {
+  color: var(--ink-soft);
+  font-size: 0.97rem;
+}
+.modal-summary a { color: var(--rust); }
+
+/* Skeleton loading cards */
+.skeleton-card {
+  background: var(--paper-tint);
+  border-radius: var(--radius);
+  aspect-ratio: 4 / 3.9;
+  animation: pulse 1.3s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 22px 0 40px;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 560px) {
+  .hero h1 { font-size: 2rem; }
+  .search-form { flex-direction: column; }
+}
