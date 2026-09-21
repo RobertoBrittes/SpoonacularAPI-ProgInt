@@ -4,7 +4,7 @@ Aplicação web que sugere **receitas a partir dos ingredientes que você já te
 
 > Projeto da disciplina de Desenvolvimento Web – consumo de API com JavaScript assíncrono.
 
-**Equipe:** Roberto Brittes Gebauer, Saulo Gabriel dos Santos Souza
+**Equipe:** Roberto e Saulo
 
 ## Problema que resolve
 
@@ -28,13 +28,13 @@ Muita gente não sabe o que cozinhar com o que sobrou na geladeira e acaba despe
 ## Arquitetura
 
 ```
-geladeira-receitas/
-├── index.html         # estrutura da página
-├── style.css          # estilos
-├── script.js          # lógica (ver seções abaixo)
-├── config.example.js  # modelo de configuração da chave
-├── config.js          # sua chave (ignorado pelo Git)
-└── .gitignore
+SpoonacularAPI-ProgInt/
+├── index.html   # estrutura da página
+├── style.css    # estilos
+├── script.js    # lógica (ver seções abaixo)
+├── config.js    # chave da API e URL base
+├── README.md
+└── Geladeira-Aberta-apresentacao.pptx
 ```
 
 `script.js` é dividido em 5 seções:
@@ -50,13 +50,10 @@ geladeira-receitas/
 1. Crie uma conta gratuita em <https://spoonacular.com/food-api/console#Dashboard> e copie sua **API Key**.
 2. Clone o repositório:
    ```bash
-   git clone <URL-DO-REPOSITORIO>
-   cd geladeira-receitas
+   git clone https://github.com/RobertoBrittes/SpoonacularAPI-ProgInt.git
+   cd SpoonacularAPI-ProgInt
    ```
-3. Copie o modelo de configuração e cole sua chave:
-   ```bash
-   cp config.example.js config.js
-   ```
+3. Abra o arquivo `config.js` e substitua o texto pela sua chave:
    ```js
    const CONFIG = { API_KEY: "sua-chave-aqui", BASE_URL: "https://api.spoonacular.com" };
    ```
