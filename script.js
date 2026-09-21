@@ -1,257 +1,292 @@
-// script.js
-// Busca de receitas usando a Spoonacular API.
-// Organização: (1) referências ao DOM, (2) funções de chamada à API (fetch/async-await),
-// (3) funções de renderização (DOM), (4) listeners de evento.
+"use strict";
 
-// ---------- 1. Referências ao DOM ----------
-const searchForm = document.getElementById("search-form");
-const searchInput = document.getElementById("search-input");
-const searchBtn = document.getElementById("search-btn");
-const randomBtn = document.getElementById("random-btn");
-const statusArea = document.getElementById("status-area");
-const resultsEl = document.getElementById("results");
+/* =========================================================
+   Geladeira Aberta – busca de receitas pelos ingredientes
+   API: Spoonacular (https://spoonacular.com/food-api)
+   Estrutura do arquivo:
+     1. Estado e referências do DOM
+     2. Camada de API (fetch assíncrono + tratamento de erros)
+     3. Funções de renderização (DOM)
+     4. Manipuladores de eventos
+     5. Inicialização
+   ========================================================= */
 
-const modalOverlay = document.getElementById("modal-overlay");
-const modalBody = document.getElementById("modal-body");
-const modalCloseBtn = document.getElementById("modal-close");
+/* ---------- 1. Estado e referências do DOM ---------- */
 
-// ---------- 2. Chamadas assíncronas à API ----------
+const state = {
+  ingredients: [],   // ingredientes escolhidos pelo usuário
+  requestId: 0,      // evita que uma resposta antiga sobrescreva uma nova
+};
 
-// Monta a URL com os parâmetros da Spoonacular, incluindo a chave do config.js.
-function buildUrl(path, params = {}) {
+const SUGGESTIONS = ["chicken", "tomato", "rice", "eggs", "cheese", "potato"];
+
+const el = {
+  form: document.getElementById("search-form"),
+  input: document.getElementById("ingredient-input"),
+  addBtn: document.getElementById("add-btn"),
+  chips: document.getElementById("chips"),
+  suggestions: document.getElementById("suggestions"),
+  searchBtn: document.getElementById("search-btn"),
+  status: document.getElementById("status"),
+  results: document.getElementById("results"),
+  dialog: document.getElementById("recipe-dialog"),
+  dialogBody: document.getElementById("dialog-body"),
+  closeDialog: document.getElementById("close-dialog"),
+};
+
+/* ---------- 2. Camada de API ---------- */
+
+class ApiError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+  }
+}
+
+function messageForStatus(status) {
+  switch (status) {
+    case 401:
+      return "Chave da API inválida. Confira o arquivo config.js.";
+    case 402:
+      return "O limite diário de requisições da API foi atingido. Tente amanhã ou use outra chave.";
+    case 404:
+      return "Receita não encontrada.";
+    case 429:
+      return "Muitas requisições em pouco tempo. Aguarde alguns segundos e tente de novo.";
+    default:
+      return `A API respondeu com erro (código ${status}). Tente novamente.`;
+  }
+}
+
+/**
+ * Faz uma requisição GET para a Spoonacular e devolve o JSON.
+ * Sempre lança um ApiError com mensagem amigável quando algo falha.
+ */
+async function request(path, params = {}) {
+  if (CONFIG.API_KEY.includes("COLE_SUA_CHAVE")) {
+    throw new ApiError("Adicione sua chave da Spoonacular no arquivo config.js.", "no-key");
+  }
+  if (!navigator.onLine) {
+    throw new ApiError("Você está sem conexão com a internet. Conecte-se e tente de novo.", "offline");
+  }
+
   const url = new URL(CONFIG.BASE_URL + path);
-  url.searchParams.set("apiKey", CONFIG.API_KEY);
-  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
-  return url.toString();
-}
+  url.search = new URLSearchParams({ ...params, apiKey: CONFIG.API_KEY });
 
-// Busca receitas por texto livre (ingrediente, prato, vontade do momento).
-async function searchRecipes(query) {
-  const url = buildUrl("/recipes/complexSearch", {
-    query,
-    number: 12,
-    addRecipeInformation: true,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000); // timeout de 10 s
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw await buildApiError(response);
-  }
-
-  const data = await response.json();
-  return data.results; // array de receitas
-}
-
-// Busca uma receita aleatória.
-async function fetchRandomRecipe() {
-  const url = buildUrl("/recipes/random", { number: 1 });
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw await buildApiError(response);
-  }
-
-  const data = await response.json();
-  return data.recipes[0];
-}
-
-// Busca os detalhes completos de uma receita (ingredientes + modo de preparo).
-async function fetchRecipeDetails(id) {
-  const url = buildUrl(`/recipes/${id}/information`);
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw await buildApiError(response);
-  }
-
-  return response.json();
-}
-
-// Traduz respostas de erro da API (401, 402, 404...) em mensagens legíveis.
-async function buildApiError(response) {
-  let detail = "";
   try {
-    const body = await response.json();
-    detail = body.message || "";
-  } catch {
-    // corpo sem JSON válido — ignora e usa a mensagem genérica abaixo
-  }
-
-  if (response.status === 401) {
-    return new Error("Chave de API inválida ou ausente. Configure CONFIG.API_KEY em config.js.");
-  }
-  if (response.status === 402) {
-    return new Error("Cota diária da Spoonacular API esgotada. Tente novamente amanhã ou use outra chave.");
-  }
-  if (response.status === 404) {
-    return new Error("Receita não encontrada.");
-  }
-  return new Error(detail || `Erro na API (código ${response.status}).`);
-}
-
-// ---------- 3. Renderização (DOM) ----------
-
-function showStatus(message, type) {
-  statusArea.hidden = false;
-  statusArea.className = `status-area ${type}`;
-  statusArea.textContent = message;
-}
-
-function hideStatus() {
-  statusArea.hidden = true;
-  statusArea.textContent = "";
-}
-
-function renderSkeletons(count = 6) {
-  resultsEl.innerHTML = "";
-  for (let i = 0; i < count; i++) {
-    const el = document.createElement("div");
-    el.className = "skeleton-card";
-    resultsEl.appendChild(el);
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new ApiError(messageForStatus(response.status), response.status);
+    }
+    return await response.json();
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err.name === "AbortError") {
+      throw new ApiError("A busca demorou demais. Verifique sua conexão e tente novamente.", "timeout");
+    }
+    throw new ApiError("Não foi possível conectar à API. Verifique sua internet.", "network");
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-function clearResults() {
-  resultsEl.innerHTML = "";
-}
-
-function renderRecipeCards(recipes) {
-  resultsEl.innerHTML = "";
-
-  recipes.forEach((recipe) => {
-    const card = document.createElement("button");
-    card.className = "recipe-card";
-    card.type = "button";
-    card.setAttribute("aria-label", `Ver detalhes de ${recipe.title}`);
-
-    const readyTime = recipe.readyInMinutes ? `${recipe.readyInMinutes} min` : "—";
-    const servings = recipe.servings ? `${recipe.servings} porções` : "—";
-
-    card.innerHTML = `
-      <img src="${recipe.image || ""}" alt="${recipe.title}" loading="lazy">
-      <div class="recipe-card-body">
-        <p class="recipe-title">${recipe.title}</p>
-        <div class="recipe-meta">
-          <span>⏱ ${readyTime}</span>
-          <span>🍽 ${servings}</span>
-        </div>
-      </div>
-    `;
-
-    card.addEventListener("click", () => openRecipeModal(recipe.id));
-    resultsEl.appendChild(card);
+function findRecipesByIngredients(ingredients) {
+  return request("/recipes/findByIngredients", {
+    ingredients: ingredients.join(","),
+    number: 12,
+    ranking: 1,          // prioriza receitas que usam mais dos seus ingredientes
+    ignorePantry: true,  // ignora sal, água, óleo etc.
   });
 }
 
-function renderModalContent(recipe) {
-  const ingredients = (recipe.extendedIngredients || [])
-    .map((ing) => `<li>${ing.original}</li>`)
-    .join("");
-
-  const steps = recipe.analyzedInstructions?.[0]?.steps || [];
-  const instructions = steps.length
-    ? steps.map((step) => `<li>${step.step}</li>`).join("")
-    : "<li>Instruções detalhadas não disponíveis para esta receita — consulte a fonte original.</li>";
-
-  modalBody.innerHTML = `
-    <img src="${recipe.image || ""}" alt="${recipe.title}">
-    <h2>${recipe.title}</h2>
-    <div class="modal-meta">
-      <span>⏱ ${recipe.readyInMinutes ?? "—"} min</span>
-      <span>🍽 ${recipe.servings ?? "—"} porções</span>
-      <span>❤️ ${recipe.aggregateLikes ?? 0} curtidas</span>
-    </div>
-    <h3>Ingredientes</h3>
-    <ul>${ingredients || "<li>Não informado.</li>"}</ul>
-    <h3>Modo de preparo</h3>
-    <ol>${instructions}</ol>
-  `;
+function getRecipeDetails(id) {
+  return request(`/recipes/${id}/information`, { includeNutrition: false });
 }
 
-function openModalShell(loadingText) {
-  modalBody.innerHTML = `<p class="modal-summary">${loadingText}</p>`;
-  modalOverlay.hidden = false;
-  document.body.style.overflow = "hidden";
+/* ---------- 3. Renderização (manipulação do DOM) ---------- */
+
+/** Cria um elemento com atributos e filhos. Usa textContent (seguro contra XSS). */
+function h(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "class") node.className = value;
+    else node.setAttribute(key, value);
+  }
+  node.append(...children);
+  return node;
 }
 
-function closeModal() {
-  modalOverlay.hidden = true;
-  document.body.style.overflow = "";
+function setStatus(message, { error = false, loading = false } = {}) {
+  el.status.textContent = message;
+  el.status.className = error ? "error" : loading ? "loading-dots" : "";
 }
 
-// ---------- 4. Orquestração + listeners de evento ----------
+function renderChips() {
+  el.chips.replaceChildren(
+    ...state.ingredients.map((name) => {
+      const remove = h("button", { type: "button", "aria-label": `Remover ${name}` }, "×");
+      remove.addEventListener("click", () => removeIngredient(name));
+      return h("li", {}, name, remove);
+    })
+  );
+}
 
-async function handleSearch(query) {
-  if (!query.trim()) {
-    showStatus("Digite algo para buscar — um prato, um ingrediente ou uma vontade.", "error");
-    clearResults();
+function renderSuggestions() {
+  SUGGESTIONS.forEach((name) => {
+    const btn = h("button", { type: "button" }, name);
+    btn.addEventListener("click", () => addIngredient(name));
+    el.suggestions.append(btn);
+  });
+}
+
+function renderRecipes(recipes) {
+  el.results.replaceChildren(
+    ...recipes.map((recipe) => {
+      const total = recipe.usedIngredientCount + recipe.missedIngredientCount;
+      const complete = recipe.missedIngredientCount === 0;
+
+      const match = h(
+        "span",
+        { class: complete ? "match full" : "match" },
+        complete
+          ? "Você tem tudo!"
+          : `Você tem ${recipe.usedIngredientCount} de ${total} ingredientes`
+      );
+
+      const body = h("div", { class: "card-body" }, h("h2", {}, recipe.title), match);
+
+      if (!complete) {
+        const names = recipe.missedIngredients.map((i) => i.name).join(", ");
+        body.append(h("p", { class: "missing" }, `Falta: ${names}`));
+      }
+
+      const detailsBtn = h("button", { type: "button" }, "Ver receita");
+      detailsBtn.addEventListener("click", () => openRecipe(recipe.id));
+      body.append(detailsBtn);
+
+      const img = h("img", { src: recipe.image, alt: recipe.title, loading: "lazy" });
+      return h("article", { class: "card" }, img, body);
+    })
+  );
+}
+
+/** O campo "summary" vem com HTML. Convertemos para texto puro. */
+function htmlToText(html) {
+  return new DOMParser().parseFromString(html, "text/html").body.textContent;
+}
+
+function renderRecipeDetails(recipe) {
+  const steps = recipe.analyzedInstructions?.[0]?.steps ?? [];
+
+  const content = [
+    h("img", { src: recipe.image, alt: recipe.title }),
+    h("h2", {}, recipe.title),
+    h("p", { class: "meta" }, `${recipe.readyInMinutes} min • ${recipe.servings} porções`),
+    h("p", {}, htmlToText(recipe.summary).split(". ").slice(0, 2).join(". ") + "."),
+    h("h3", {}, "Ingredientes"),
+    h("ul", {}, ...recipe.extendedIngredients.map((i) => h("li", {}, i.original))),
+    h("h3", {}, "Modo de preparo"),
+  ];
+
+  content.push(
+    steps.length
+      ? h("ol", {}, ...steps.map((s) => h("li", {}, s.step)))
+      : h("p", {}, "Esta receita não tem passo a passo cadastrado.")
+  );
+
+  el.dialogBody.replaceChildren(...content);
+}
+
+/* ---------- 4. Ações e eventos ---------- */
+
+function addIngredient(raw) {
+  const name = raw.trim().toLowerCase();
+  if (!name) return;
+  if (!state.ingredients.includes(name)) {
+    state.ingredients.push(name);
+    renderChips();
+  }
+  el.input.value = "";
+  el.input.focus();
+}
+
+function removeIngredient(name) {
+  state.ingredients = state.ingredients.filter((i) => i !== name);
+  renderChips();
+}
+
+async function searchRecipes() {
+  // Aproveita o que ficou digitado no campo sem apertar "Adicionar"
+  if (el.input.value.trim()) addIngredient(el.input.value);
+
+  if (state.ingredients.length === 0) {
+    el.results.replaceChildren();
+    setStatus("Adicione pelo menos um ingrediente antes de buscar.", { error: true });
     return;
   }
 
-  hideStatus();
-  renderSkeletons();
-  searchBtn.disabled = true;
+  const myRequest = ++state.requestId;
+  el.searchBtn.disabled = true;
+  el.results.replaceChildren();
+  setStatus("Procurando receitas", { loading: true });
 
   try {
-    const recipes = await searchRecipes(query.trim());
+    const recipes = await findRecipesByIngredients(state.ingredients);
+    if (myRequest !== state.requestId) return; // chegou uma busca mais nova
 
     if (recipes.length === 0) {
-      clearResults();
-      showStatus(`Nenhuma receita encontrada para "${query}". Tente outro termo.`, "empty");
+      setStatus("Nenhuma receita encontrada. Confira se os nomes estão em inglês ou tente outros ingredientes.", { error: true });
       return;
     }
-
-    renderRecipeCards(recipes);
-  } catch (error) {
-    clearResults();
-    // Distingue falha de rede (offline, DNS, CORS) de erro retornado pela API.
-    if (error instanceof TypeError) {
-      showStatus("Não foi possível conectar à API. Verifique sua internet e tente novamente.", "error");
-    } else {
-      showStatus(error.message, "error");
-    }
+    setStatus(`${recipes.length} receitas encontradas.`);
+    renderRecipes(recipes);
+  } catch (err) {
+    setStatus(err.message, { error: true });
+    console.warn("Falha na busca:", err.code, err.message);
   } finally {
-    searchBtn.disabled = false;
+    el.searchBtn.disabled = false;
   }
 }
 
-async function openRecipeModal(id) {
-  openModalShell("Carregando receita...");
+async function openRecipe(id) {
+  el.dialogBody.replaceChildren(h("p", { class: "loading-dots" }, "Carregando receita"));
+  el.dialog.showModal();
   try {
-    const recipe = await fetchRecipeDetails(id);
-    renderModalContent(recipe);
-  } catch (error) {
-    modalBody.innerHTML = `<p class="modal-summary">Erro ao carregar a receita: ${error.message}</p>`;
+    renderRecipeDetails(await getRecipeDetails(id));
+  } catch (err) {
+    el.dialogBody.replaceChildren(h("p", { class: "error" }, err.message));
   }
 }
 
-async function handleRandomRecipe() {
-  hideStatus();
-  randomBtn.disabled = true;
-  openModalShell("Sorteando uma receita...");
-  try {
-    const recipe = await fetchRandomRecipe();
-    // A resposta de /recipes/random já vem completa, sem precisar de uma segunda chamada.
-    renderModalContent(recipe);
-  } catch (error) {
-    modalBody.innerHTML = `<p class="modal-summary">Erro: ${error.message}</p>`;
-  } finally {
-    randomBtn.disabled = false;
-  }
-}
+el.addBtn.addEventListener("click", () => addIngredient(el.input.value));
 
-searchForm.addEventListener("submit", (event) => {
+el.input.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    addIngredient(el.input.value);
+  }
+});
+
+el.form.addEventListener("submit", (event) => {
   event.preventDefault();
-  handleSearch(searchInput.value);
+  searchRecipes();
 });
 
-randomBtn.addEventListener("click", handleRandomRecipe);
+el.closeDialog.addEventListener("click", () => el.dialog.close());
 
-modalCloseBtn.addEventListener("click", closeModal);
-modalOverlay.addEventListener("click", (event) => {
-  if (event.target === modalOverlay) closeModal();
+// Fecha o modal ao clicar fora dele
+el.dialog.addEventListener("click", (event) => {
+  if (event.target === el.dialog) el.dialog.close();
 });
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !modalOverlay.hidden) closeModal();
-});
+
+window.addEventListener("offline", () =>
+  setStatus("Conexão perdida. Você está offline.", { error: true })
+);
+window.addEventListener("online", () => setStatus("Conexão restabelecida."));
+
+/* ---------- 5. Inicialização ---------- */
+renderSuggestions();
